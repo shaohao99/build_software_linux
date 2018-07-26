@@ -1,0 +1,3 @@
+CC=gcc
+OBJ=main.o other.o
+EXE=fav1

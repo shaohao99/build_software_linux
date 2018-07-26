@@ -1,0 +1,13 @@
+include ./variables
+
+$(EXE): $(OBJ)
+	$(CC) $^ -o $@
+
+%.o: %.c
+	$(CC) -c $<
+
+#main.o other.o: other.h
+*.o: other.h
+
+clean:
+	rm $(EXE) *.o

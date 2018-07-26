@@ -1,0 +1,543 @@
+<html xmlns="http://www.w3.org/1999/xhtml"><head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <meta http-equiv="Content-Style-Type" content="text/css">
+  <meta name="generator" content="pandoc">
+  <title></title>
+  <style type="text/css">code{white-space: pre;}</style>
+  <style type="text/css">
+div.sourceCode { overflow-x: auto; }
+table.sourceCode, tr.sourceCode, td.lineNumbers, td.sourceCode {
+  margin: 0; padding: 0; vertical-align: baseline; border: none; }
+table.sourceCode { width: 100%; line-height: 100%; }
+td.lineNumbers { text-align: right; padding-right: 4px; padding-left: 4px; color: #aaaaaa; border-right: 1px solid #aaaaaa; }
+td.sourceCode { padding-left: 5px; }
+code > span.kw { color: #007020; font-weight: bold; }
+code > span.dt { color: #902000; }
+code > span.dv { color: #40a070; }
+code > span.bn { color: #40a070; }
+code > span.fl { color: #40a070; }
+code > span.ch { color: #4070a0; }
+code > span.st { color: #4070a0; }
+code > span.co { color: #60a0b0; font-style: italic; }
+code > span.ot { color: #007020; }
+code > span.al { color: #ff0000; font-weight: bold; }
+code > span.fu { color: #06287e; }
+code > span.er { color: #ff0000; font-weight: bold; }
+  </style>
+  <link rel="stylesheet" href="swc.css" type="text/css">
+</head>
+<body>
+<div id="TOC">
+<ul>
+<li><a href="#building-software-from-source-code-in-linux">Building Software from Source Code in Linux</a><ul>
+<li><a href="#preparation">Preparation</a></li>
+<li><a href="#overview">Overview</a></li>
+<li><a href="#building-a-single-file-program">Building a single-file program</a><ul>
+<li><a href="#step-1-preprocess">Step 1: Preprocess</a></li>
+<li><a href="#step-2-compile">Step 2: Compile</a></li>
+<li><a href="#step-3-assemble">Step 3: Assemble</a></li>
+<li><a href="#step-4-link">Step 4: Link</a></li>
+<li><a href="#challege">Challege:</a></li>
+</ul></li>
+<li><a href="#building-a-multi-file-program">Building a multi-file program</a><ul>
+<li><a href="#including-header-files">Including header files</a></li>
+<li><a href="#challenge">Challenge</a></li>
+</ul></li>
+<li><a href="#linking-external-libraries">Linking external libraries</a><ul>
+<li><a href="#shared-libraries-vs-static-libraries">Shared libraries vs static libraries</a></li>
+<li><a href="#building-with-shared-libraries-in-default-known-locations">Building with shared libraries in default (known) locations</a></li>
+<li><a href="#challenge-1">Challenge</a></li>
+<li><a href="#sidebar-where-does-the-preprocessor-look-to-find-header-files">Sidebar: where does the preprocessor look to find header files?</a></li>
+<li><a href="#sidebar-where-does-the-linker-look-to-find-libraries">Sidebar: where does the linker look to find libraries?</a></li>
+<li><a href="#building-with-shared-libraries-in-non-default-unknown-locations">Building with shared libraries in non-default (unknown) locations</a></li>
+<li><a href="#challenge-2">Challenge</a></li>
+</ul></li>
+<li><a href="#automating-the-build-process-with-gnu-make">Automating the build process with GNU Make</a><ul>
+<li><a href="#basics-for-make">How GNU Make works</a></li>
+<li><a href="#challenge-3">Challenge</a></li>
+<li><a href="#more-on-make">Writing a good Makefile</a></li>
+<li><a href="#challenge-4">Challenge</a></li>
+</ul></li>
+<li><a href="#references">References</a></li>
+</ul></li>
+</ul>
+</div>
+<h1 id="building-software-from-source-code-in-linux">Building Software from Source Code in Linux</h1>
+<h2 id="preparation">Preparation</h2>
+<ul>
+<li>Log into the SCC, either using the Mobaxterm on the lab computers or your favorite terminal on your laptop.</li>
+<li><p>Create a new working directory, then make a copy of the example files for the tutorial, like so:</p>
+<pre class="shell"><code>cd ~
+cp -r /project/scv/examples/BuildingSoftware/src tut</code></pre></li>
+</ul>
+<h2 id="overview">Overview</h2>
+<p>This lesson plan covers the (very) basics of building small projects from C or Fortran source code using the GNU compiler, and automating this process using GNU Make. It is intended for scientists venturing into scientific programming, to help ease the frustrations that typically come up when starting to work in compiled programming languages.</p>
+<p>The material is not unique, and borrows heavily from the references listed at the end of the lesson. Comments are always welcome!</p>
+<h2 id="building-a-single-file-program">Building a single-file program</h2>
+<p>Let's start with a simple example: building a "hello world" program with the GNU compiler.</p>
+<p>Our C program (<code>hello.c</code>) looks like this:</p>
+<div class="sourceCode"><pre class="sourceCode c"><code class="sourceCode c"><span class="ot">#include &lt;stdio.h&gt;</span>
+main()
+{
+    (<span class="dt">void</span>) printf(<span class="st">"Hello World</span><span class="ch">\n</span><span class="st">"</span>);
+    <span class="kw">return</span> (<span class="dv">0</span>);
+}</code></pre></div>
+<p>To build a working executable from this file in the simplest way possible, run:</p>
+<pre><code>$ gcc hello.c</code></pre>
+<p>The Fortran program (<code>hello.f90</code>) is as following: </p>
+<div class="sourceCode"><pre class="sourceCode fortran"><code class="sourceCode fortran">program main
+    print *, "Hello world"
+end program main
+</code></pre></div>
+To build the Fortran program,
+<pre><code>$ gfortran hello.f90</code></pre>
+<p>The <code>gcc/gfortran</code> command creates an executable with a default name of <code>a.out</code>. Running this command prints the familiar message:</p>
+<pre><code>$ a.out
+Hello World</code></pre>
+<p>More happened here than meets the eye. In fact, the command <code>gcc</code> wraps up 4 steps of the build process:</p>
+<ol>
+<li>Preprocess</li>
+<li>Compile</li>
+<li>Assemble</li>
+<li>Link</li>
+</ol>
+<h3 id="step-1-preprocess">Step 1: Preprocess</h3>
+<p>In this step, <code>gcc</code> calls preprocessing program <code>cpp</code> to interpret <em>preprocessor directives</em> and <em>modify the source code</em> accordingly.</p>
+<p>Some common directives are:</p>
+<ul>
+<li><code>#include</code>
+<ul>
+<li>includes contents of the named file, typically a <em>header</em> file</li>
+<li>e.g. <code>#include &lt;stdio.h&gt;</code></li>
+</ul></li>
+<li><code>#define</code>
+<ul>
+<li>macro substitution</li>
+<li>e.g. #define PI 3.14159</li>
+</ul></li>
+<li><code>#ifdef ... #end</code>
+<ul>
+<li><p>conditional compilation, the code block is included only if a certain macro is defined, e.g:</p>
+<div class="sourceCode"><pre class="sourceCode c"><code class="sourceCode c"><span class="ot">#ifdef TEST_CASE</span>
+a=<span class="dv">1</span>; b=<span class="dv">0</span>; c=<span class="dv">0</span>;
+<span class="ot">#endif</span></code></pre></div></li>
+</ul></li>
+</ul>
+<p>We <em>could</em> perform just this step of the build process like so:</p>
+<pre class="shell"><code>cpp hello.c hello.i</code></pre>
+<p>Examining the output file (<strong><code>vim hello.i</code></strong>) shows that the long and messy <code>stdio.h</code> header has been appended to our simple code. You may also like to explore adding <code>#define</code> statements, or conditional code blocks.</p>
+<h3 id="step-2-compile">Step 2: Compile</h3>
+<p>In this step, the (modified) source code is translated from the C programming language into <em>assembly code</em>.</p>
+<p>Assembly code is a low-level programming language with commands that correspond to machine instructions for a particular type of hardware. It is still just plain text --- you can read assembly and write it too if you so desire.</p>
+<p>To perform just the compilation step of the build process, we would run:</p>
+<pre class="shell"><code>gcc -S -c hello.i -o hello.s</code></pre>
+<p>Examining the output file (<strong><code>vim hello.s</code></strong>) shows that processor-specific instructions needed to run our program on this specific system. Interestingly, for such a simple program as ours, the assembly code is actually shorter than the preprocesses source code (though not the original source code).</p>
+<h3 id="step-3-assemble">Step 3: Assemble</h3>
+<p>Assembly code is then translated into <em>object code</em> (<a href="http://www.linfo.org/object_code.html">more</a>). This is a binary representation of the actions your computer needs to take to run your program. It is no longer human-readable, but it can be understood by your processor.</p>
+<p>To perform just this step of the build process, we would run:</p>
+<pre class="shell"><code>gcc -c hello.s -o hello.o</code></pre>
+<p>You can try to view this <em>object file</em> like we did the other intermediate steps, but the result will not be terribly useful (<code>vim hello.o</code>). Your text editor is trying to interpret binary machine language commands as ASCII characters, and (mostly) failing. Perhaps the most interesting result of doing so is that there are intelligable bits --- these are the few variables, etc, that actually are ASCII characters.</p>
+<p>Also note that object files are <em>not</em> executables, you can't run them until after the next step.</p>
+<h3 id="step-4-link">Step 4: Link</h3>
+<p>In the final step, <code>gcc</code> calls the <em>linker</em> program <code>ld</code> to combine the object file with any external functions it needs (e.g. library functions or functions from other source files). In our case, this would include <code>printf</code> from the C standard library.</p>
+<p>To perform just this step of the build process, we would run:</p>
+<pre class="shell"><code>gcc hello.o -o hello</code></pre>
+<h3 id="challege">Challege:</h3>
+<p>Compile and run the following program (<code>squares.c</code>):</p>
+<div class="sourceCode"><pre class="sourceCode c"><code class="sourceCode c"><span class="ot">#include &lt;stdio.h&gt;</span>
+main()
+{ 
+    <span class="dt">int</span> i;
+
+    printf(<span class="st">"</span><span class="ch">\t</span><span class="st"> Number </span><span class="ch">\t\t</span><span class="st"> Square of Number</span><span class="ch">\n\n</span><span class="st">"</span>);
+
+    <span class="kw">for</span> (i=<span class="dv">0</span>; i&lt;=<span class="dv">25</span>; ++i)
+    printf(<span class="st">"</span><span class="ch">\t</span><span class="st"> %d </span><span class="ch">\t\t\t</span><span class="st"> %d </span><span class="ch">\n</span><span class="st">"</span>, i, i*i);
+}</code></pre></div>
+<p>If you have some extra time, try walking through the process step-by-step and inspecting the results.</p>
+<h4 id="solution">Solution:</h4>
+<pre class="shell"><code>gcc squares.c -o squares
+./squares</code></pre>
+<h2 id="building-a-multi-file-program">Building a multi-file program</h2>
+<p>For all but the smallest programming projects, it is convenient to break up the source code into multiple files. Typically, these include a main function in one file, and one or more other files containing functions / subroutines called by main(). In addition, a <em>header file</em> is usually used to share custom data types, function prototypes, preprocessor macros, etc.</p>
+<p>We will use a simple example program in the <code>multi_string</code> folder, which consists of:</p>
+<ul>
+<li><code>main.c</code>: The main driver function, which calls a subroutine and exits</li>
+<li><code>WriteMyString.c</code>: a module containing the subroutine called by main</li>
+<li><code>header.h</code>: one function prototype and one macro definition</li>
+</ul>
+<p>The easiest way to compile such a program is to include all the required source files at the <code>gcc</code> command line:</p>
+<pre class="shell"><code>gcc main.c WriteMyString.c -o my_string
+./my_string</code></pre>
+<p>It is also quite common to separate out the process into two steps:</p>
+<ol>
+<li>source code -&gt; object code</li>
+<li>object code -&gt; executable (or library)</li>
+</ol>
+<p>The reason is that this allows you to reduce compiling time by only recompiling objects that need to be updated. This seems (and is) silly for small projects, but becomes important quickly. We will use this approach later when we discuss automating the build process.</p>
+<pre class="shell"><code>gcc -c WriteMyString.c
+gcc -c main.c
+gcc WriteMyString.o main.o -o write
+./write</code></pre>
+<h3 id="including-header-files">Including header files</h3>
+<p>Note that it is <strong>not</strong> necessary to include the header file on the <code>gcc</code> command line. This makes sense since we know that the (bundeled) preprocessing step will append any required headers to the source code before it is compiled.</p>
+<p>There is one caveat: the preprocessor must be able to find the header files in order to include them. Our example works because <code>header.h</code> is in the working directory when we run <code>gcc</code>. We can break it by moving the header to a new subdirectory, like so:</p>
+<pre class="shell"><code>mkdir include
+mv header.c include
+gcc main.c WriteMyString.c -o my_string</code></pre>
+<p>The above commands give the output error:</p>
+<pre class="shell"><code>main.c:4:20: fatal error: header.h: No such file or directory </code></pre>
+<p>We can fix this by specifically telling <code>gcc</code> where it can find the requisite headers, using the <strong><code>-I</code></strong> flag:</p>
+<pre class="shell"><code>gcc -I ./include main.c WriteMyString.c -o my_string</code></pre>
+<p>This is most often need in the case where you wish to use external libraries installed in non-standard locations. We will explore this case below.</p>
+<h3 id="challenge">Challenge</h3>
+<p>In the folder <code>multi_fav_num</code> you will find another simple multi-file program. Build this source code to a program named <code>fav_num</code> using separate compile and link steps. Once you have done this successfully, change the number defined in <code>other.c</code> and rebuild. You should <em>not</em> have to recompile <code>main.c</code> to do this.</p>
+<h4 id="solution-1">Solution:</h4>
+<pre class="shell"><code>gcc -c main.c
+gcc -c other.c
+gcc main.o other.o -o fav_num
+./fav_num
+
+vim other.c
+
+gcc -c other.c
+gcc main.o other.o -o fav_num
+./fav_num</code></pre>
+<h2 id="linking-external-libraries">Linking external libraries</h2>
+<p>NOTE: content in this section is (lightly) modified from <a href="https://www3.ntu.edu.sg/home/ehchua/programming/cpp/gcc_make.html">this site</a>.</p>
+<p>A <strong>library</strong> is a collection of pre-compiled object files that can be linked into your programs via the linker. In simpler terms, they are machine code files that contain functions, etc, you can use in your programs.</p>
+<p>A few example functions that come from libraries are:</p>
+<ul>
+<li><code>printf()</code> from the <code>libc.so</code> shared library</li>
+<li><code>sqrt()</code> from the <code>libm.so</code> shared library</li>
+</ul>
+<p>We will return to these in a moment.</p>
+<h3 id="shared-libraries-vs-static-libraries">Shared libraries vs static libraries</h3>
+<ul>
+<li><p>A <strong>static library</strong> has file extension of <code>.a</code> (archive file). When your program links a static library, the machine code of external functions used in your program is copied into the executable. At runtime, everything your program needs is wrapped up inside the executable.</p></li>
+<li><p>A <strong>shared library</strong> has file extension of ".so" (shared objects). When your program is linked against a shared library, only a small table is created in the executable. At runtime, the exectutable must be able to locate the functions listed in this table. This is done by the operating system - a process known as <em>dynamic linking</em>.</p></li>
+</ul>
+<p>Static libraries certainly seem simpler, but most programs use shared libraries and dynamic linking. There are several reasons why the added complexity is thought to be worth it:</p>
+<ul>
+<li>Makes executable files smaller and saves disk space, because one copy of a library can be shared between multiple programs.</li>
+<li>Most operating systems allow one copy of a shared library in memory to be used by all running programs, saving memory.</li>
+<li>If your libraries are updated, programs using shared libraries automatically take advantage of these updates, programs using static libraries would need to be recompiled.</li>
+</ul>
+<p>Because of the advantage of dynamic linking, GCC will prefer a shared library to a static library if both are available (by default).</p>
+<h3 id="building-with-shared-libraries-in-default-known-locations">Building with shared libraries in default (known) locations</h3>
+<p>Let's start with an example that uses the <code>sqrt()</code> function from the math library:</p>
+<div class="sourceCode"><pre class="sourceCode c"><code class="sourceCode c"><span class="ot">#include &lt;stdio.h&gt;</span>
+<span class="ot">#include &lt;math.h&gt;</span>
+
+<span class="dt">void</span> main()
+{ 
+    <span class="dt">int</span> i;
+
+    printf(<span class="st">"</span><span class="ch">\t</span><span class="st"> Number </span><span class="ch">\t\t</span><span class="st"> Square Root of Number</span><span class="ch">\n\n</span><span class="st">"</span>);
+
+    <span class="kw">for</span> (i=<span class="dv">0</span>; i&lt;=<span class="dv">360</span>; ++i)
+        printf(<span class="st">"</span><span class="ch">\t</span><span class="st"> %d </span><span class="ch">\t\t\t</span><span class="st"> %d </span><span class="ch">\n</span><span class="st">"</span>, i, sqrt((<span class="dt">double</span>) i));
+
+}</code></pre></div>
+<p>Notice the function <code>sqrt</code>, which we use, but do not define. The (machine) code for this function is stored in <code>libm.so</code>, and the function definition is stored in the header file <code>math.h</code>.</p>
+<p>To build successfully, we must:</p>
+<ol>
+<li><code>#include</code> the header file for the external library</li>
+<li>Make sure that the preprocessor can <em>find</em> this header file</li>
+<li>Instruct the linker to link to the external library</li>
+</ol>
+<p>Let's go ahead and build the program. To compile and link this in separate steps, we would run:</p>
+<pre class="shell"><code>gcc -c roots.c
+gcc roots.o -lm -o roots</code></pre>
+<p>The first command preprocesses <code>roots.c</code>, appending the header files, and then translates it to object code. This step does need to find the header file, but it does not yet require the library.</p>
+<p>The second command links all of the object code into the executable. It does not need to find the header file (it is already compiled into <code>roots.o</code>) but it does need to find the library file.</p>
+<p>Library files are included using the <code>-l</code> flag. Thier names are given excluding the <code>lib</code> prefix and exluding the <code>.so</code> suffix.</p>
+<p>Just as we did above, we can combine the build steps into a single command:</p>
+<pre class="shell"><code>gcc roots.c -lm -o roots</code></pre>
+<p><strong>IMPORTANT</strong> Because we are using shared libraries, the linker <em>must</em> be able to find the linked libraries at runtime, otherwise the program will fail. You can check the libraries required by a program, and whether they are being found correctly or not using the <code>ldd</code> command. For out roots program, we get the following</p>
+<pre class="shell"><code>ldd roots</code></pre>
+<pre><code>linux-vdso.so.1 =&gt;  (0x00007fff8bb8a000)
+libm.so.6 =&gt; /lib64/libm.so.6 (0x00007ffc69550000)
+libc.so.6 =&gt; /lib64/libc.so.6 (0x00007ffc691bc000)
+/lib64/ld-linux-x86-64.so.2 (0x00007ffc69801000)</code></pre>
+<p>Which shows that our executable requires a few basic system libraries as well as the math library we explicitly included, and that all of these dependencies are found by the linker.</p>
+<h3 id="challenge-1">Challenge</h3>
+<p>Before moving on, let's take a few minutes to break this build process. Try the following and read the error messages carefully. These are your hints to fixing a broken build process.</p>
+<ol>
+<li>Comment out <code>#include &lt;math.h&gt;</code> from <code>roots.c</code></li>
+<li>Omit <code>-lm</code> from the linking step</li>
+</ol>
+<h3 id="sidebar-where-does-the-preprocessor-look-to-find-header-files">Sidebar: where does the preprocessor look to find header files?</h3>
+<p>The preprocessor will search some default paths for included header files. Before we go down the rabbit hole, it is important to note that you <strong>do not</strong> have to do this for a typical build, but the commands may prove useful when you are trying to work out why something fails to build.</p>
+<p>We can run the following commands to show the preprocessor search path and look for files in therein:</p>
+<pre class="shell:"><code>cpp -Wp,-v</code></pre>
+<p>Which has the following output:</p>
+<pre><code>ignoring nonexistent directory "/usr/local/include"
+ignoring nonexistent directory "/usr/lib/gcc/x86_64-redhat-linux/4.4.7/include-fixed"
+ignoring nonexistent directory "/usr/lib/gcc/x86_64-redhat-linux/4.4.7/../../../../x86_64-redhat-linux/include"
+#include "..." search starts here:
+#include &lt;...&gt; search starts here:
+ /usr/lib/gcc/x86_64-redhat-linux/4.4.7/include
+  /usr/include
+  End of search list.
+  ^C</code></pre>
+<p>The last few lines show the paths where GCC will search for header files by default. We can then search these include paths for the file we want, <code>math.h</code> like so:</p>
+<pre class="shell"><code>find /usr/include /usr/lib/gcc/x86_64-redhat-linux/4.4.7/include -name math.h</code></pre>
+<p>Which has the following output:</p>
+<pre><code>/usr/include/FL/math.h
+/usr/include/c++/4.4.4/tr1/math.h
+/usr/include/math.h</code></pre>
+<p>If we are really curious, we could open the header and see what it contains, but this is rarely necessary.</p>
+<h3 id="sidebar-where-does-the-linker-look-to-find-libraries">Sidebar: where does the linker look to find libraries?</h3>
+<p>The linker will search some default paths for included library files. Again, it is important to note that you <strong>do not</strong> have to do this for a typical build, but the commands may prove useful when you are trying to work out why something fails to build.</p>
+<p>To look for the library, we can run the following command to get a list of all library files the linker is aware of, then search that list for the math library we need:</p>
+<pre class="shell"><code>ldconfig -p 
+ldconfig -p | grep libm.so</code></pre>
+<p>The latter command gives the output:</p>
+<pre><code>libm.so.6 (libc6,x86-64, OS ABI: Linux 2.6.18) =&gt; /lib64/libm.so.6
+libm.so.6 (libc6, hwcap: 0x0028000000000000, OS ABI: Linux 2.6.18) =&gt; /lib/i686/nosegneg/libm.so.6
+libm.so.6 (libc6, OS ABI: Linux 2.6.18) =&gt; /lib/libm.so.6
+libm.so (libc6,x86-64, OS ABI: Linux 2.6.18) =&gt; /usr/lib64/libm.so
+libm.so (libc6, OS ABI: Linux 2.6.18) =&gt; /usr/lib/libm.so</code></pre>
+<p>We certainly have the math library available. In fact, there are a few versions of this library known to the linker. Thankfully, we can let the linker sort out which one to use.</p>
+<p>We might also want to peek inside a library file (or any object code for that matter) to see what functions and variables are defined within. We can list all the names, then search for the one we care about, like so:</p>
+<pre class="shell"><code>nm /lib/libm.so.6
+nm /lib/libm.so.6 | grep sqrt</code></pre>
+<p>The output of this command contains the following line, which shows us that it does indeed include <em>something</em> called <code>sqrt</code>.</p>
+<pre><code>0000000000025990 W sqrt</code></pre>
+<h3 id="building-with-shared-libraries-in-non-default-unknown-locations">Building with shared libraries in non-default (unknown) locations</h3>
+<p><em>note: the following command lines build the libctest.so shared library used in the example below:</em></p>
+<pre class="shell"><code>gcc -Wall -fPIC -c ctest1.c ctest2.c
+gcc -shared -Wl,-soname,libctest.so -o libctest.so ctest1.o ctest2.o</code></pre>
+<p><em>or</em></p>
+<pre class="shell"><code>gcc ctest1.c ctest2.c -shared -o libctest.so</code></pre>
+<p><em>end note</em></p>
+<p>Let's switch to a new bit of example code, called <code>use_ctest.c</code> that makes use of a (very simple) custom library in the <code>ctest</code> directory:</p>
+<div class="sourceCode"><pre class="sourceCode c"><code class="sourceCode c"><span class="ot">#include &lt;stdio.h&gt;</span>
+<span class="ot">#include "ctest.h"</span>
+ 
+<span class="dt">int</span> main(){
+    <span class="dt">int</span> x;
+    <span class="dt">int</span> y;
+    <span class="dt">int</span> z;
+    ctest1(&amp;x);
+    ctest2(&amp;y);
+    z = (x / y);
+    printf(<span class="st">"%d / %d = %d</span><span class="ch">\n</span><span class="st">"</span>, x, y, z);
+    <span class="kw">return</span> <span class="dv">0</span>;
+}</code></pre></div>
+<p>Trying to compile this fails with an error:</p>
+<pre class="shell"><code>gcc -c use_ctest.c
+
+use_ctest.c:2:19: error: ctest.h: No such file or directory</code></pre>
+<p>As the error message indicates, the problem here is that an included header file is not found by the preprocessor. We can use the <code>-I</code> flag to fix this problem:</p>
+<pre class="shell"><code>gcc -I ctest_dir/include -c use_ctest.c</code></pre>
+<p>When we try to link the program to create an executable, we know we need to explicitly add the library with the <code>-l</code> flag, but in this case we still get an error:</p>
+<pre class="shell"><code>gcc use_ctest.o -lctest -o use_ctest
+/usr/bin/ld: cannot find -lctest
+collect2: ld returned 1 exit status</code></pre>
+<p>Just like for the header, we need to explicitly specify the path to the library file:</p>
+<pre class="shell"><code>gcc -Lctest_dir/lib  use_ctest.o -lctest -o use_ctest</code></pre>
+<p>Success, or so it would seem. What happens when we try to run our shiny new executable?</p>
+<pre class="shell"><code>./use_ctest
+
+./use_ctest: error while loading shared libraries: libctest.so: cannot open shared object file: No such file or directory</code></pre>
+<p>We can diagnose this problem by checking to see if the dynamic linker is able to gather up all the dependencies at runtime:</p>
+<pre class="shell"><code>ldd use_ctest
+
+linux-vdso.so.1 =&gt;  (0x00007fffd75ff000)
+libctest.so =&gt; not found
+libc.so.6 =&gt; /lib64/libc.so.6 (0x00007f802d21b000)
+/lib64/ld-linux-x86-64.so.2 (0x00007f802d5dd000)</code></pre>
+<p>The output clearly shows that it does not. The problem here is that the dynamic linker will only search the default paths unless we:</p>
+<ol>
+<li><p>Permanently add our custom library to this search path. This option is not covered here - I am assuming that many of you will be working on clusters and other systems where you do not have root permissions.</p></li>
+<li><p>Specify the location of non-standard libraries using the <code>LD_LIBRARY_PATH</code> variable. <code>LD_LIBRARY_PATH</code> contains a colon (:) separated list of directories where the dynamic linker should look for shared libraries. The linker will search these directories <em>before</em> the default system paths. You can define the value of <code>LD_LIBRARY_PATH</code> for a particular command only by preceeding the command with the definintion, like so:</p>
+<pre class="shell"><code>LD_LIBRARY_PATH=ctest_dir/lib:$LD_LIBRARY_PATH ./use_ctest</code></pre>
+<p>Or define it for your whole shell as an environment variable:</p>
+<pre class="shell"><code>export LD_LIBRARY_PATH=./ctest_dir/lib:$LD_LIBRARY_PATH
+./use_ctest</code></pre></li>
+<li><p>Hard-code the location of non-standard libraries into the executable. Setting (and forgeting to set) <code>LD_LIBRARY_PATH</code> all the time can be tiresome. An alternative approach is to burn the location of the shared libraries into the executable as an <code>RPATH</code> or <code>RUNPATH</code>. This is done by adding some additional flags for the linker, like so:</p>
+<pre class="shell"><code>gcc use_ctest.o -Lctest_dir/lib -lctest -Wl,-rpath=./ctest_dir/lib -o use_ctest</code></pre>
+<p>We can confirm that this worked by running the program (resetting <code>LD_LIBRARY_PATH</code> first if needed), and more explicitly, by examining the executable directly:</p>
+<pre class="shell"><code>./use_ctest
+readelf -d use_ctest</code></pre></li>
+</ol>
+<h3 id="challenge-2">Challenge</h3>
+<p>Without using your history, try to recompile and run the use_ctest program. For an additional challenge, try to do so using RUNPATH to hardcode the location of the shared library.</p>
+<h2 id="automating-the-build-process-with-gnu-make">Automating the build process with GNU Make</h2>
+<p>The manual build process we used above can become quite tedious for all but the smallest projects. There are many ways that we might automate this process. The simplest would be to write a shell script that runs the build commands each time we invoke it. Let's take the simple <code>hello.c</code> program as a test case:</p>
+<pre class="shell"><code>#!/bin/bash
+gcc -c hello.c
+gcc hello.o -o hello</code></pre>
+<p>This works fine for small projects, but for large multi-file projects, we would have to compile <em>all</em> the sources every time we change <em>any</em> of the sources.</p>
+<p>The Make utility provides a useful way around this problem. The solution is that we (the programmer) write a special script that defines all the dependencies between source files, edit one or more files in our project, then invoke Make to recompile only those files that are affected by any changes.</p>
+<h3 id="basics-for-make">How GNU Make works</h3>
+<p>GNU Make is a mini-programming language unto itself. Once a Makefile is prepared, a multi-file program can be built by executing one single command,
+<pre class="shell"><code>make</code></pre>
+The command <code>make</code> looks for a file named <code>Makefile</code> or <code>makefile</code> in the same directory by default. Other file names can be specified by the option <code>-f</code>:
+<pre class="shell"><code>make -f filename</code></pre>
+
+<p>For the <code>hello</code> program, a Makefile might look like this:</p>
+<pre class="shell"><code>hello: hello.o
+    gcc hello.o -o hello
+
+hello.o: hello.c
+    gcc -c hello.c
+
+clean:
+    rm hello hello.o</code></pre>
+<p>The syntax here is <code>target: prerequisite_1 prerequisite_2 etc</code>. The command block that follows will be executed to generate the target if any of the prerequisites have been modified. The command lines always start with a tab key (It does not work to start with spaces). The first (top) target will be built by default, or you can specify a specific target to build following the <code>make</code> command. When we run <code>make</code> for the first time, the computer will take the following actions:</p>
+<ol>
+<li>Find the default target, which is our executable file <code>hello</code>.</li>
+<li>Check to see if <code>hello</code> is up-to-date. <code>hello</code> does not exist, so it is out-of-date and will have to be built</li>
+<li>Check to see if the prerequisite <code>hello.o</code> is up-to-date. <code>hello.o</code> does not exist, so it is out-of-date and will have to be built.</li>
+<li>The prerequisite <code>hello.c</code> is not a target, so there is nothing left to check. The command <code>gcc -c hello.c</code> will be run to build <code>hello.o</code></li>
+<li>Now <code>hello.o</code> is up to date, so <code>make</code> builds the next target <code>hello</code> by running the command <code>gcc hello.o -o hello</code></li>
+<li>Done.</li>
+</ol>
+<p>A target is considered out-of-date if: </p>
+<ol>
+<li> it does not exist, or
+<li> it is older than any of the prerequisites.
+</ol>
+
+<p>Note that the command under the <code>clean</code> target is not executed by <code>make</code>, because it is neither the first target nor an prerequisite of any other target. To bring this target up, we need to specify the target name:</p>
+<pre class="shell"><code>make clean </code></pre>
+<p>This will remove the executable and the <code>.o</code> files, which is necessary before rebuilding the program. Notice that if all targets are up-to-date, <code>make</code> does not recompile anything.</p>
+<p>Let's look at an example for our first multi-file program:</p>
+<pre class="shell"><code>write: main.o WriteMyString.o
+        gcc main.o WriteMyString.o -o write
+
+main.o: main.c header.h
+        gcc -c main.c
+
+WriteMyString.o: WriteMyString.c
+        gcc -c WriteMyString.c
+
+clean: 
+        rm write *.o</code></pre>
+
+<p>If it is the first build, <code>make</code> builds the targets in the following order: <code>main.o</code>, <code>WriteMyString.o</code> and <code>write</code>. This compiles all source codes and links object files to build the executable. If it is not the first build, <code>make</code> will only build the targets whose prerequisite has been modified since last <code>make</code>. This feature makes it efficient for building a program with many source files. For example, if <code>WriteMyString.c</code> is modified, only <code>WriteMyString.c</code> is recompiled, while <code>main.c</code> is not. If <code>main.c</code> or <code>header.h</code> is modified, only <code>main.c</code> is recompiled, while <code>WriteMyString.c</code> is not. In either case, the <code>write</code> target will be built, since either <code>main.o</code> or <code>WriteMyString.o</code> is updated.</p>
+
+<p>By default, <code>make</code> prints on the screen all the commands that it executes. To suppress the print, add an <code>@</code> before the commands, or turn on the silent mode with the option <code>-s</code>: </p>
+<pre class="shell"><code>make -s</code></pre>
+
+
+<h3 id="challenge-3">Challenge</h3>
+<p>Starting from the template below (or using our previous Makefile), see if you can write your own makefile for the <code>multi_fav_num</code> program:</p>
+<pre class="shell"><code>fav: _____  _____
+        gcc _____  ______ -o fav 
+
+main.o: _____  _____ 
+        gcc ___  _____
+
+other.o: _____  _____
+        _________________
+
+clean: 
+        rm _____  _____</code></pre>
+
+<h3 id="more-on-make">Writing a good Makefile</h3>
+<p>A Makefile could be very compilcated in a practical program with many source files. It is important to write a Makefile in good logic. The text in the Makefile should be as simple and clear as possbile. To this end, useful features of Makrefile are introduced in this section.</p>
+
+<p>You may have noticed that there are many duplications of the same file name or command name in our previous Makefiles. It is more convinient to use varialbes. Again, take our first multi-file program for example. The Makefile can be rewitten as following,</p>
+
+<pre class="shell"><code>CC=gcc
+OBJ=main.o WriteMyString.o
+EXE=write
+
+$(EXE): $(OBJ)
+        $(CC) $(OBJ) -o $(EXE)
+
+main.o: main.c header.h
+        $(CC) -c main.c
+
+WriteMyString.o: WriteMyString.c
+        $(CC) -c WriteMyString.c
+
+clean:
+        rm $(EXE) *.o</code></pre>
+
+<p>Here we have defined the varialbes <code>CC</code> for the compiler, <code>OBJ</code> for object files and <code>EXE</code> for the executable file. If we want to change the compiler or the file names, we only modify the corresponding variables at one place, but do not need to modify all related places in the Makefile. </p>
+
+Furthermore, we can upgrade the Makefile to a higher automatic level using the so-called "automatic variables":
+
+<pre class="shell"><code>$(EXE): $(OBJ)
+        $(CC) $^ -o $@
+
+main.o: main.c header.h
+        $(CC) -c $<
+
+WriteMyString.o: WriteMyString.c
+        $(CC) -c $< </code></pre>
+<p>Here we have used the following automatic variables:</p>
+<ul>
+<li><code>$@ </code> --- the name of the current target</li>
+<li><code>$^ </code> --- the names of all the prerequisites</li>
+<li><code>$< </code> --- the name of the first prerequisite</li>
+</ul>
+
+<p>These automatic variables automatically take the names of current target or prerequisites, no matter what values are assigned to them. </p>
+
+<p>We can notice that the <code>main.o</code> and <code>WriteMyString.o</code> targets are built by the same command. Is there a way to combine the two duplicated commands into one so as to compile all source code files by one command line? Yes, it can be done with an implicit pattern rule:</p>
+
+<pre class="shell"><code>%.o: %.c
+        $(CC) -c $<
+
+main.o: header.h </code></pre>
+
+<p>Here <code>%</code> stands for the same thing in the prerequisites as it does in the target. In this example, any <code>.o</code> target has a corresponding <code>.c</code> file as an implied prerequisite. If a target (e.g. <code>main.o</code>) needs additional prerequisites (e.g. <code>header.h</code>), write an actionless rule with those prerequisites. We can imagine that applying this impilict rule should significantly simpify the Makefile when there are a large number of (say hundreds of) source files. </p>
+
+<p>If there are many varialbes to be defined, it is convinient to write the definition of all variables in another file, and then include the file in Makefile:
+
+<pre class="shell"><code>include ./variables </code></pre>
+
+<p>The content of the file <code>variables</code> is as following:</p>
+<pre class="shell"><code>CC=gcc
+OBJ=main.o WriteMyString.o
+EXE=write
+</code></pre>
+
+<p>In most cases, the target name is a file name. But there are exceptions, such as the <code>clean</code> target in this example. The <code>rm</code> command will not create any file named clean. What if there exists a file named clean in this directory? Let's do an experiment. </p>
+<pre class="shell"><code>touch clean
+make clean
+make: `clean' is up to date.
+</code></pre>
+The <code>clean</code> target does not work properly. Since it has no prerequisite, <code>clean</code> will always be considered up-to-date, and thus nothing will be done. To solve this issue, we can
+declare the target to be phony by making it a prerequisite of the special target <code>.PHONY</code> as follows: 
+<pre class="shell"><code>.PHONY: clean</code></pre>
+A phony target is one that is not really the name of a file; rather it is just a name for a recipe to be executed. 
+
+<p>Finally, we end up with an efficient Makefile:</p>
+<pre class="shell"><code>include ./variables
+.PHONY: clean
+
+$(EXE): $(OBJ)
+        $(CC) $^ -o $@
+
+%.o: %.c
+        $(CC) -c $<
+
+main.o: header.h
+
+clean:
+        rm $(EXE) *.o</code></pre>
+
+<h3 id="challenge-4">Challenge</h3>
+Rewrite a Makefile for the <code>multi_fav_num</code> program using regular variables, automatic variables, the implicit pattern rule and the phony target.
+
+<h2 id="Authors">Authors</h2>
+This page is created by Keith Ma and Shaohao Chen, Research Computing Services, Information Services & Technology, Boston University. 
+
+<h2 id="references">References</h2>
+<ul>
+<li><a href="https://www3.ntu.edu.sg/home/ehchua/programming/cpp/gcc_make.html">GCC and Make: Compiling, Linking and Building C/C++ Applications</a></li>
+<li><a href="https://www.cs.cf.ac.uk/Dave/C/node3.html">Programming in C: C/C++ Program Compilation</a></li>
+<li><a href="https://www.cs.cf.ac.uk/Dave/C/node35.html">Programming in C: Writing Larger Programs</a></li>
+<li><a href="http://www.linfo.org/">The Linux Information Project</a></li>
+<li><a href="http://www.techytalk.info/c-cplusplus-library-programming-on-linux-part-one-static-libraries/">C/C++ library programming on Linux</a></li>
+</ul>
+
+
+</body></html>
